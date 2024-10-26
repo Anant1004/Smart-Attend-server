@@ -159,4 +159,12 @@ app.get('/messages', authenticate, async (req, res) => {
 
 
 const port = process.env.PORT || 5000;
-connectDB(app, port);
+connectDB().then(() => {
+    app.listen(port, () => {
+        console.log(`Server running on port ${port}`);
+    });
+}).catch((err) => {
+    console.error("Failed to connect to the database", err);
+    process.exit(1); // Exit with error if DB connection fails
+});
+
