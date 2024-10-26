@@ -19,6 +19,8 @@ app.use(cookieParser())
 app.use(morgan('dev'));  
 app.use(cors({
     origin: 'https://smart-attend-puce.vercel.app',
+    methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
 }));
 
@@ -27,6 +29,11 @@ app.use(cors({
 app.post('/signup', signup);
 app.post('/login', login);
 app.get('/logout', logout);
+
+app.options('*', (req, res) => {
+    console.log("OP")
+    res.sendStatus(200);
+});
 
 
 // 
