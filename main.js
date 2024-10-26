@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser())
 app.use(morgan('dev'));  
 app.use(cors({
-    origin: 'https://smart-attend-puce.vercel.app',
+    origin: ['https://smart-attend-puce.vercel.app','http://localhost:5173'],
     methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
