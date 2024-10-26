@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 const validRoles = ['student', 'teacher'];
 
 const generateRandomNumber = () => {
-    return Math.floor(10000 + Math.random() * 90000).toString(); 
+    return Math.floor(10000 + Math.random() * 90000).toString();
 };
 
 const signup = async (req, res) => {
@@ -42,7 +42,7 @@ const signup = async (req, res) => {
 };
 
 const login = async (req, res) => {
-    const { email, password, authNumber, role } = req.body;  
+    const { email, password, authNumber, role } = req.body;
     if (!email || !password || (role === 'teacher' && !authNumber)) {
         return res.status(400).json({ message: 'All fields are required' });
     }
@@ -59,12 +59,15 @@ const login = async (req, res) => {
 
         const token = jwt.sign(
             { id: user._id, role: user.role },
-            process.env.JWT_SECRET, 
+            process.env.JWT_SECRET,
             { expiresIn: '5h' });
 
         res.status(200)
             .cookie('token', token, {
                 maxAge: 2 * 60 * 60 * 1000,
+                httpOnly: true,
+                secure: true,
+                sameSite: 'None'
             })
             .json({ message: 'Login successful', token, role: user.role });
     } catch (error) {
