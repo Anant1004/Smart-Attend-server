@@ -1,42 +1,46 @@
 const express = require('express');
-const morgan = require('morgan');  
-const app = express();
+const morgan = require('morgan');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const { signup, login, logout } = require('./controllers/authControllers');
 const User = require('./models/user');
 const Attendance = require('./models/attendance');
 const Message = require('./models/message');
-const cookieParser = require('cookie-parser');
-const { authenticate, authorize} = require('./middleware/authorization');
-const connectDB = require ('./connections/mongoose');
+const { authenticate, authorize } = require('./middleware/authorization');
+const connectDB = require('./connections/mongoose');
+const jwt = require('jsonwebtoken')
+
 dotenv.config();
 
-
+const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser())
-app.use(morgan('dev'));  
+app.use(cookieParser());
+app.use(morgan('dev'));
 app.use(cors({
-    origin: ['https://smart-attend-puce.vercel.app','http://localhost:5173'],
+    origin: ['https://smart-attend-puce.vercel.app', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'OPTIONS', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
 }));
 
+app.get('/loggedIn', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) return res.json({ isLoggedIn: false });
 
-// POST & GET - Signup, Login & logout
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) return res.json({ isLoggedIn: false });
+        res.json({ isLoggedIn: true, user });
+    });
+});
+
+// POST & GET - Signup, Login & Logout
 app.post('/signup', signup);
 app.post('/login', login);
 app.get('/logout', logout);
 
-app.options('*', (req, res) => {
-    console.log("OP")
-    res.sendStatus(200);
-});
-
-
-// 
+// Students route with authentication and authorization
 app.get('/students', authenticate, async (req, res) => {
     try {
         const students = await User.find({ role: 'student' });
@@ -66,7 +70,7 @@ app.get('/students', authenticate, async (req, res) => {
     }
 });
 
-// POST - mark the attendance of the student 
+// Mark attendance with authentication and authorization
 app.post('/attendance', authenticate, authorize(['teacher']), async (req, res) => {
     const { attendanceData } = req.body;
 
@@ -121,7 +125,7 @@ app.post('/attendance', authenticate, authorize(['teacher']), async (req, res) =
     }
 });
 
-// POST - Create a new message
+// POST - Create a new message with auto-deletion
 app.post('/messages', authenticate, authorize(['teacher']), async (req, res) => {
     const { message, duration } = req.body;
     const teacherId = req.user.id;
@@ -138,7 +142,7 @@ app.post('/messages', authenticate, authorize(['teacher']), async (req, res) => 
         await newMessage.save();
         setTimeout(async () => {
             await Message.findByIdAndDelete(newMessage._id);
-        }, duration * 60 * 1000); 
+        }, duration * 60 * 1000);
 
         res.status(201).json({ message: 'Message created successfully', newMessage });
     } catch (error) {
@@ -146,15 +150,15 @@ app.post('/messages', authenticate, authorize(['teacher']), async (req, res) => 
     }
 });
 
-// GET - Get messages for students (only active ones)
+// GET - Get active messages for students
 app.get('/messages', authenticate, async (req, res) => {
     try {
         const currentTime = new Date();
         const activeMessages = await Message.find({
-            startTime: { $lte: currentTime }, 
+            startTime: { $lte: currentTime },
             $expr: {
                 $gt: [{ $add: ['$startTime', { $multiply: ['$duration', 60000] }] }, currentTime]
-            } 
+            }
         });
 
         res.status(200).json({ messages: activeMessages });
@@ -164,7 +168,6 @@ app.get('/messages', authenticate, async (req, res) => {
     }
 });
 
-
 const port = process.env.PORT || 5000;
 connectDB().then(() => {
     app.listen(port, () => {
@@ -172,6 +175,5 @@ connectDB().then(() => {
     });
 }).catch((err) => {
     console.error("Failed to connect to the database", err);
-    process.exit(1); // Exit with error if DB connection fails
+    process.exit(1);
 });
-
